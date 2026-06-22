@@ -1,6 +1,6 @@
 import './style.css';
 
-const STORAGE_KEY = 'phungnong_schedule';
+const API = '/api';
 const DAY_MINUTES = 1440;
 const LANE_HEIGHT = 28;
 const LANE_GAP = 4;
@@ -9,12 +9,8 @@ const LABEL_WIDTH = 140;
 
 const $ = (sel) => document.querySelector(sel);
 
-let state = loadState();
+let state = { date: '', employees: [], assignments: [] };
 let nowLineEl = null;
-
-function todayStr() {
-  return new Date().toLocaleDateString('sv-SE');
-}
 
 function formatDateVi(iso) {
   const [y, m, d] = iso.split('-');
@@ -26,24 +22,18 @@ function nowMinutes() {
   return n.getHours() * 60 + n.getMinutes();
 }
 
-function loadState() {
-  const today = todayStr();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.date === today) return parsed;
-    }
-  } catch {
-    /* ponytail: corrupt storage → fresh day */
-  }
-  const fresh = { date: today, employees: [], assignments: [] };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
-  return fresh;
+async function api(path, options) {
+  const res = await fetch(`${API}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Lỗi kết nối server');
+  return data;
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+async function loadState() {
+  state = await api('/state');
 }
 
 function parseEmployees(text) {
@@ -56,10 +46,6 @@ function parseEmployees(text) {
 function minutes(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
-}
-
-function uid() {
-  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function hashColor(name) {
@@ -288,56 +274,48 @@ function render() {
   renderTimeline();
 }
 
-function saveEmployees() {
+async function saveEmployees() {
   const names = parseEmployees($('#employees-input').value);
   if (!names.length) {
     showError('Nhập ít nhất một nhân viên.');
     return;
   }
-  showError('');
-  state.employees = names;
-  state.assignments = state.assignments.filter((a) => names.includes(a.employee));
-  saveState();
-  render();
+  try {
+    state = await api('/employees', {
+      method: 'PUT',
+      body: JSON.stringify({ employees: names }),
+    });
+    showError('');
+    render();
+  } catch (e) {
+    showError(e.message);
+  }
 }
 
-function addAssignment(employee, start, end, task) {
+async function addAssignment(employee, start, end, task) {
   if (!state.employees.length) {
     showError('Lưu danh sách nhân viên trước.');
-    return false;
+    return;
   }
-  if (!state.employees.includes(employee)) {
-    showError('Nhân viên không có trong danh sách.');
-    return false;
+  try {
+    state = await api('/assignments', {
+      method: 'POST',
+      body: JSON.stringify({ employee, start, end, task }),
+    });
+    showError('');
+    render();
+  } catch (e) {
+    showError(e.message);
   }
-  const startMin = minutes(start);
-  const endMin = minutes(end);
-  if (endMin <= startMin) {
-    showError('Giờ kết thúc phải sau giờ bắt đầu.');
-    return false;
-  }
-  if (!task.trim()) {
-    showError('Nhập mô tả công việc.');
-    return false;
-  }
-
-  state.assignments.push({
-    id: uid(),
-    employee,
-    start,
-    end,
-    task: task.trim(),
-  });
-  saveState();
-  showError('');
-  render();
-  return true;
 }
 
-function deleteAssignment(id) {
-  state.assignments = state.assignments.filter((a) => a.id !== id);
-  saveState();
-  render();
+async function deleteAssignment(id) {
+  try {
+    state = await api(`/assignments/${id}`, { method: 'DELETE' });
+    render();
+  } catch (e) {
+    showError(e.message);
+  }
 }
 
 function bindEvents() {
@@ -355,9 +333,19 @@ function bindEvents() {
 }
 
 bindEvents();
-render();
 
-setInterval(updateNowLine, 60_000);
+async function init() {
+  try {
+    await loadState();
+    render();
+    setInterval(updateNowLine, 60_000);
+  } catch {
+    $('#timeline').innerHTML =
+      '<p class="error">Không tải được dữ liệu. Chạy <code>npm run dev</code>.</p>';
+  }
+}
+
+init();
 
 if (import.meta.env.DEV) {
   const lanes = assignLanes([

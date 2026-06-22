@@ -83,7 +83,11 @@ body {
   padding-top: 1rem;
 }
 
-#tab-schedule {
+.tab-panel[hidden] {
+  display: none !important;
+}
+
+#tab-schedule:not([hidden]) {
   display: flex;
   flex-direction: column;
   gap: 0;

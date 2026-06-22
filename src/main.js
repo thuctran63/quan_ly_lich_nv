@@ -466,6 +466,7 @@ function bindEvents() {
 bindEvents();
 
 async function init() {
+  switchTab('employees');
   try {
     await loadState();
     render();

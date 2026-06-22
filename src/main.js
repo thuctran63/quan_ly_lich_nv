@@ -5,18 +5,25 @@ const DAY_MINUTES = 1440;
 const LANE_HEIGHT = 28;
 const LANE_GAP = 4;
 const ROW_PADDING = 8;
+const LABEL_WIDTH = 140;
 
 const $ = (sel) => document.querySelector(sel);
 
 let state = loadState();
+let nowLineEl = null;
 
 function todayStr() {
-  return new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD local
+  return new Date().toLocaleDateString('sv-SE');
 }
 
 function formatDateVi(iso) {
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function nowMinutes() {
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes();
 }
 
 function loadState() {
@@ -62,7 +69,6 @@ function hashColor(name) {
   return `hsl(${hue}, 55%, 42%)`;
 }
 
-/** Gán mỗi block vào lane đầu tiên còn trống (cho phép chồng giờ). */
 function assignLanes(items) {
   const sorted = [...items].sort((a, b) => minutes(a.start) - minutes(b.start));
   const lanes = [];
@@ -113,6 +119,20 @@ function updateEmployeeSelect() {
   if (state.employees.includes(prev)) sel.value = prev;
 }
 
+function renderLegend() {
+  const legend = $('#legend');
+  if (!state.employees.length) {
+    legend.innerHTML = '';
+    return;
+  }
+  legend.innerHTML = state.employees
+    .map(
+      (name) =>
+        `<span class="legend-item"><span class="legend-dot" style="background:${hashColor(name)}"></span>${esc(name)}</span>`
+    )
+    .join('');
+}
+
 function renderAssignmentList() {
   const container = $('#assignment-list');
   if (!state.assignments.length) {
@@ -130,6 +150,7 @@ function renderAssignmentList() {
     div.className = 'assignment-item';
     div.innerHTML = `
       <span>
+        <span class="legend-dot" style="background:${hashColor(a.employee)}"></span>
         <strong>${esc(a.employee)}</strong><br />
         ${esc(a.start)} – ${esc(a.end)}<br />
         ${esc(a.task)}
@@ -151,78 +172,117 @@ function esc(s) {
   return d.innerHTML;
 }
 
+function updateNowLine() {
+  if (!nowLineEl) return;
+  const pct = (nowMinutes() / DAY_MINUTES) * 100;
+  nowLineEl.style.left = `${pct}%`;
+}
+
 function renderTimeline() {
   const container = $('#timeline');
+  nowLineEl = null;
 
   if (!state.employees.length) {
-    container.innerHTML = '<p class="empty">Lưu danh sách nhân viên để hiển thị timeline.</p>';
+    container.className = 'gantt gantt--empty';
+    container.innerHTML = '<p class="empty">Lưu danh sách nhân viên để hiển thị bảng điều phối.</p>';
     return;
   }
 
-  const inner = document.createElement('div');
-  inner.className = 'timeline-inner';
+  container.className = 'gantt';
+  container.innerHTML = '';
 
-  // Time axis
+  const board = document.createElement('div');
+  board.className = 'gantt-board';
+
+  const header = document.createElement('div');
+  header.className = 'gantt-header';
+  header.innerHTML = `<div class="gantt-corner">Nhân viên</div>`;
+
   const axis = document.createElement('div');
-  axis.className = 'time-axis';
-  axis.innerHTML = '<div class="time-axis-label"></div>';
-  const ticks = document.createElement('div');
-  ticks.className = 'time-axis-ticks';
+  axis.className = 'gantt-axis';
   for (let h = 0; h <= 24; h += 2) {
     const tick = document.createElement('span');
     tick.className = 'tick';
     tick.style.left = `${(h / 24) * 100}%`;
     tick.textContent = h === 24 ? '24:00' : `${h}:00`;
-    ticks.appendChild(tick);
+    axis.appendChild(tick);
   }
-  axis.appendChild(ticks);
-  inner.appendChild(axis);
+  header.appendChild(axis);
+  board.appendChild(header);
 
-  for (const emp of state.employees) {
+  const body = document.createElement('div');
+  body.className = 'gantt-body';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'gantt-overlay';
+  overlay.style.setProperty('--label-width', `${LABEL_WIDTH}px`);
+
+  const grid = document.createElement('div');
+  grid.className = 'gantt-grid';
+  overlay.appendChild(grid);
+
+  const nowLine = document.createElement('div');
+  nowLine.className = 'gantt-now';
+  nowLine.title = 'Giờ hiện tại';
+  overlay.appendChild(nowLine);
+  nowLineEl = nowLine;
+
+  body.appendChild(overlay);
+
+  state.employees.forEach((emp, i) => {
     const row = document.createElement('div');
-    row.className = 'timeline-row';
+    row.className = 'gantt-row';
+    if (i % 2 === 1) row.classList.add('gantt-row--alt');
 
     const label = document.createElement('div');
-    label.className = 'row-label';
-    label.textContent = emp;
+    label.className = 'gantt-label';
+    label.innerHTML = `<span class="legend-dot" style="background:${hashColor(emp)}"></span><span class="gantt-name">${esc(emp)}</span>`;
 
     const track = document.createElement('div');
-    track.className = 'row-track';
+    track.className = 'gantt-track';
 
     const empAssignments = state.assignments.filter((a) => a.employee === emp);
-    const withLanes = assignLanes(empAssignments);
-    const maxLane = withLanes.reduce((m, a) => Math.max(m, a.lane), 0);
-    const trackHeight = ROW_PADDING * 2 + (maxLane + 1) * LANE_HEIGHT + maxLane * LANE_GAP;
-    track.style.height = `${Math.max(44, trackHeight)}px`;
 
-    for (const a of withLanes) {
-      const block = document.createElement('div');
-      block.className = 'time-block';
-      const leftPct = (a._start / DAY_MINUTES) * 100;
-      const widthPct = ((a._end - a._start) / DAY_MINUTES) * 100;
-      block.style.left = `${leftPct}%`;
-      block.style.width = `${widthPct}%`;
-      block.style.top = `${ROW_PADDING + a.lane * (LANE_HEIGHT + LANE_GAP)}px`;
-      block.style.height = `${LANE_HEIGHT}px`;
-      block.style.background = hashColor(emp);
-      block.dataset.tip = `${a.task} — Từ ${a.start} đến ${a.end}`;
-      block.innerHTML = `<span>${esc(a.task)}</span>`;
-      track.appendChild(block);
+    if (!empAssignments.length) {
+      const idle = document.createElement('div');
+      idle.className = 'gantt-idle';
+      idle.textContent = 'Rảnh';
+      track.appendChild(idle);
+    } else {
+      const withLanes = assignLanes(empAssignments);
+      const maxLane = withLanes.reduce((m, a) => Math.max(m, a.lane), 0);
+      const trackHeight = ROW_PADDING * 2 + (maxLane + 1) * LANE_HEIGHT + maxLane * LANE_GAP;
+      track.style.height = `${Math.max(48, trackHeight)}px`;
+
+      for (const a of withLanes) {
+        const block = document.createElement('div');
+        block.className = 'time-block';
+        block.style.left = `${(a._start / DAY_MINUTES) * 100}%`;
+        block.style.width = `${((a._end - a._start) / DAY_MINUTES) * 100}%`;
+        block.style.top = `${ROW_PADDING + a.lane * (LANE_HEIGHT + LANE_GAP)}px`;
+        block.style.height = `${LANE_HEIGHT}px`;
+        block.style.background = hashColor(emp);
+        block.dataset.tip = `${a.task} — Từ ${a.start} đến ${a.end}`;
+        block.innerHTML = `<span>${esc(a.task)}</span>`;
+        track.appendChild(block);
+      }
     }
 
     row.appendChild(label);
     row.appendChild(track);
-    inner.appendChild(row);
-  }
+    body.appendChild(row);
+  });
 
-  container.innerHTML = '';
-  container.appendChild(inner);
+  board.appendChild(body);
+  container.appendChild(board);
+  updateNowLine();
 }
 
 function render() {
   $('#current-date').textContent = formatDateVi(state.date);
   $('#employees-input').value = state.employees.join('\n');
   $('#employee-count').textContent = `${state.employees.length} nhân viên`;
+  renderLegend();
   updateEmployeeSelect();
   renderAssignmentList();
   renderTimeline();
@@ -297,7 +357,8 @@ function bindEvents() {
 bindEvents();
 render();
 
-// ponytail: self-check lane packing
+setInterval(updateNowLine, 60_000);
+
 if (import.meta.env.DEV) {
   const lanes = assignLanes([
     { start: '08:00', end: '10:00' },

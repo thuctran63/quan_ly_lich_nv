@@ -13,66 +13,71 @@
     </header>
 
     <main class="layout">
-      <aside class="sidebar">
-        <section class="card">
-          <h2>Danh sách nhân viên</h2>
-          <p class="hint">Mỗi dòng một tên nhân viên</p>
-          <textarea
-            id="employees-input"
-            rows="6"
-            placeholder="Ví dụ:&#10;Nguyễn Văn A&#10;Trần Thị B&#10;Lê Văn C"
-          ></textarea>
-          <button type="button" id="save-employees" class="btn btn-primary">
-            Lưu danh sách
-          </button>
-          <p class="badge" id="employee-count">0 nhân viên</p>
-        </section>
+      <section class="gantt-panel card">
+        <div class="gantt-panel-head">
+          <h2>Bảng điều phối lịch</h2>
+          <div id="legend" class="legend"></div>
+        </div>
+        <div id="timeline" class="gantt">
+          <p class="empty">Lưu danh sách nhân viên để hiển thị bảng điều phối.</p>
+        </div>
+      </section>
 
-        <section class="card">
-          <h2>Gán lịch</h2>
-          <form id="assignment-form">
-            <label>
-              Nhân viên
-              <select id="employee-select" required>
-                <option value="">— Chọn nhân viên —</option>
-              </select>
-            </label>
-            <div class="time-row">
-              <label>
-                Bắt đầu
-                <input type="time" id="start-time" required />
-              </label>
-              <label>
-                Kết thúc
-                <input type="time" id="end-time" required />
-              </label>
-            </div>
-            <label>
-              Công việc
-              <input
-                type="text"
-                id="task-input"
-                placeholder="Mô tả việc đang làm"
-                required
-              />
-            </label>
-            <button type="submit" class="btn btn-primary">Cập nhật</button>
-          </form>
-          <p id="form-error" class="error" hidden></p>
-        </section>
-
-        <section class="card">
-          <h2>Lịch đã gán</h2>
-          <div id="assignment-list" class="assignment-list">
-            <p class="empty">Chưa có lịch nào.</p>
+      <section class="controls">
+        <div class="controls-grid">
+          <div class="card">
+            <h2>Danh sách nhân viên</h2>
+            <p class="hint">Mỗi dòng một tên nhân viên</p>
+            <textarea
+              id="employees-input"
+              rows="4"
+              placeholder="Ví dụ:&#10;Nguyễn Văn A&#10;Trần Thị B&#10;Lê Văn C"
+            ></textarea>
+            <button type="button" id="save-employees" class="btn btn-primary">
+              Lưu danh sách
+            </button>
+            <p class="badge" id="employee-count">0 nhân viên</p>
           </div>
-        </section>
-      </aside>
 
-      <section class="timeline-panel card">
-        <h2>Timeline trong ngày (0:00 – 24:00)</h2>
-        <div id="timeline" class="timeline">
-          <p class="empty">Lưu danh sách nhân viên để hiển thị timeline.</p>
+          <div class="card">
+            <h2>Gán lịch</h2>
+            <form id="assignment-form">
+              <label>
+                Nhân viên
+                <select id="employee-select" required>
+                  <option value="">— Chọn nhân viên —</option>
+                </select>
+              </label>
+              <div class="time-row">
+                <label>
+                  Bắt đầu
+                  <input type="time" id="start-time" required />
+                </label>
+                <label>
+                  Kết thúc
+                  <input type="time" id="end-time" required />
+                </label>
+              </div>
+              <label>
+                Công việc
+                <input
+                  type="text"
+                  id="task-input"
+                  placeholder="Mô tả việc đang làm"
+                  required
+                />
+              </label>
+              <button type="submit" class="btn btn-primary">Cập nhật</button>
+            </form>
+            <p id="form-error" class="error" hidden></p>
+          </div>
+
+          <div class="card">
+            <h2>Lịch đã gán</h2>
+            <div id="assignment-list" class="assignment-list">
+              <p class="empty">Chưa có lịch nào.</p>
+            </div>
+          </div>
         </div>
       </section>
     </main>

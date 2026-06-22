@@ -339,9 +339,21 @@ async function init() {
     await loadState();
     render();
     setInterval(updateNowLine, 60_000);
-  } catch {
+    // ponytail: poll 15s — user khác cập nhật thì thấy luôn
+    setInterval(async () => {
+      try {
+        const next = await api('/state');
+        if (JSON.stringify(next) !== JSON.stringify(state)) {
+          state = next;
+          render();
+        }
+      } catch {
+        /* bỏ qua lỗi poll */
+      }
+    }, 15_000);
+  } catch (e) {
     $('#timeline').innerHTML =
-      '<p class="error">Không tải được dữ liệu. Chạy <code>npm run dev</code>.</p>';
+      `<p class="error">Không tải được dữ liệu: ${esc(e.message)}. Chạy <code>npm run dev</code> và kiểm tra MONGODB_URI.</p>`;
   }
 }
 

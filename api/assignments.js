@@ -1,12 +1,13 @@
 import { randomUUID } from 'crypto';
 import { addAssignment } from '../lib/store.js';
+import { withHandler, parseBody } from '../lib/handler.js';
 
-export default async function handler(req, res) {
+export default withHandler(async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { employee, start, end, task } = req.body ?? {};
+  const { employee, start, end, task } = parseBody(req);
   if (!employee || !start || !end || !task?.trim()) {
     return res.status(400).json({ error: 'Thiếu thông tin lịch' });
   }
@@ -26,4 +27,4 @@ export default async function handler(req, res) {
       task: task.trim(),
     })
   );
-}
+});

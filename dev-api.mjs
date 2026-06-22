@@ -1,29 +1,35 @@
 import 'dotenv/config';
 import express from 'express';
 import { randomUUID } from 'crypto';
-import {
-  readState,
-  saveEmployees,
-  addAssignment,
-  deleteAssignment,
-} from './lib/store.js';
+import { readState, saveEmployees, addAssignment, deleteAssignment } from './lib/store.js';
+import { ApiError } from './lib/handler.js';
 
 const app = express();
 app.use(express.json());
 
-app.get('/api/state', async (_req, res) => res.json(await readState()));
+function send(fn) {
+  return async (req, res) => {
+    try {
+      await fn(req, res);
+    } catch (e) {
+      console.error(e);
+      const status = e instanceof ApiError ? e.status : 500;
+      res.status(status).json({ error: e.message || 'Lỗi server' });
+    }
+  };
+}
 
-app.put('/api/employees', async (req, res) => {
+app.get('/api/state', send(async (_req, res) => res.json(await readState())));
+
+app.put('/api/employees', send(async (req, res) => {
   const names = req.body?.employees;
   if (!Array.isArray(names) || !names.every((n) => typeof n === 'string')) {
     return res.status(400).json({ error: 'employees phải là mảng tên' });
   }
-  const cleaned = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
-  if (!cleaned.length) return res.status(400).json({ error: 'Cần ít nhất một nhân viên' });
-  res.json(await saveEmployees(cleaned));
-});
+  res.json(await saveEmployees(names));
+}));
 
-app.post('/api/assignments', async (req, res) => {
+app.post('/api/assignments', send(async (req, res) => {
   const { employee, start, end, task } = req.body ?? {};
   if (!employee || !start || !end || !task?.trim()) {
     return res.status(400).json({ error: 'Thiếu thông tin lịch' });
@@ -42,10 +48,11 @@ app.post('/api/assignments', async (req, res) => {
       task: task.trim(),
     })
   );
-});
+}));
 
-app.delete('/api/assignments/:id', async (req, res) => {
+app.delete('/api/assignments/:id', send(async (req, res) => {
   res.json(await deleteAssignment(req.params.id));
-});
+}));
 
-app.listen(3001, () => console.log('API dev http://localhost:3001'));
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`API dev http://localhost:${PORT}`));

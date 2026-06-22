@@ -28,8 +28,9 @@ npm run dev
 
 1. Push repo lên GitHub
 2. [vercel.com](https://vercel.com) → **New Project** → Import repo
-3. **Settings → Environment Variables** → thêm `MONGODB_URI` (cùng URI như `.env`)
-4. Deploy
+3. **Settings → Environment Variables** → thêm `MONGODB_URI` (thêm `/phungnong` trước `?` trong URI)
+4. **Network Access** trên Atlas → `0.0.0.0/0`
+5. Deploy
 
 Vercel tự chạy API trong thư mục `/api` + serve frontend từ `dist/`.
 

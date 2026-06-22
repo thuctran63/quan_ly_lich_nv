@@ -41,10 +41,124 @@ body {
 .layout {
   max-width: 1500px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0 1rem 1rem;
+}
+
+/* ── Nav tabs ── */
+
+.nav-tabs {
+  display: flex;
+  gap: 0;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 0;
+  border-bottom: 2px solid #e2e8f0;
+  background: #fff;
+}
+
+.nav-tab {
+  padding: 0.65rem 1.25rem;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.nav-tab:hover {
+  color: #2563eb;
+}
+
+.nav-tab--active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.tab-panel {
+  padding-top: 1rem;
+}
+
+#tab-schedule {
   display: flex;
   flex-direction: column;
+  gap: 0;
+}
+
+/* ── Tab layouts ── */
+
+.employees-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
   gap: 1rem;
+  align-items: start;
+}
+
+.schedule-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.employee-form .form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.employee-form .btn-primary {
+  width: auto;
+  flex: 1;
+}
+
+.employee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.employee-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.employee-row-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e3a5f;
+}
+
+.employee-row-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.btn-sm {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.btn-secondary:hover {
+  background: #cbd5e1;
 }
 
 .card {
@@ -306,18 +420,16 @@ body {
   visibility: visible;
 }
 
-/* ── Controls (bottom) ── */
-
-.controls-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
+/* ── Controls (schedule tab) ── */
 
 .hint {
   margin: -0.5rem 0 0.5rem;
   font-size: 0.8rem;
   color: #64748b;
+}
+
+.schedule-layout .assignment-list {
+  max-height: 280px;
 }
 
 label {
@@ -370,6 +482,66 @@ textarea {
   background: #1d4ed8;
 }
 
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn--loading {
+  position: relative;
+  color: transparent !important;
+}
+
+.btn--loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.toast {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  max-width: min(360px, calc(100vw - 2rem));
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  transform: translateY(120%);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast--show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast--success {
+  background: #15803d;
+}
+
+.toast--error {
+  background: #b91c1c;
+}
+
 .btn-danger {
   background: #fee2e2;
   color: #b91c1c;
@@ -420,7 +592,8 @@ textarea {
 }
 
 @media (max-width: 1000px) {
-  .controls-grid {
+  .employees-layout,
+  .schedule-layout {
     grid-template-columns: 1fr;
   }
 }

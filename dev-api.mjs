@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { randomUUID } from 'crypto';
-import { readState, saveEmployees, addAssignment, deleteAssignment } from './lib/store.js';
+import { readState, saveEmployees, addEmployee, renameEmployee, removeEmployee, addAssignment, deleteAssignment } from './lib/store.js';
 import { ApiError } from './lib/handler.js';
 
 const app = express();
@@ -27,6 +27,20 @@ app.put('/api/employees', send(async (req, res) => {
     return res.status(400).json({ error: 'employees phải là mảng tên' });
   }
   res.json(await saveEmployees(names));
+}));
+
+app.post('/api/employees', send(async (req, res) => {
+  res.json(await addEmployee(req.body?.name));
+}));
+
+app.patch('/api/employees', send(async (req, res) => {
+  const { oldName, newName } = req.body ?? {};
+  res.json(await renameEmployee(oldName, newName));
+}));
+
+app.delete('/api/employees', send(async (req, res) => {
+  const name = req.body?.name || req.query?.name;
+  res.json(await removeEmployee(name));
 }));
 
 app.post('/api/assignments', send(async (req, res) => {

@@ -12,33 +12,63 @@
       <p class="date-line">Hôm nay: <strong id="current-date"></strong></p>
     </header>
 
+    <nav class="nav-tabs">
+      <button type="button" class="nav-tab nav-tab--active" data-tab="employees">
+        Quản lý nhân viên
+      </button>
+      <button type="button" class="nav-tab" data-tab="schedule">Lập lịch</button>
+    </nav>
+
     <main class="layout">
-      <section class="gantt-panel card">
-        <div class="gantt-panel-head">
-          <h2>Bảng điều phối lịch</h2>
-          <div id="legend" class="legend"></div>
-        </div>
-        <div id="timeline" class="gantt">
-          <p class="empty">Lưu danh sách nhân viên để hiển thị bảng điều phối.</p>
+      <!-- Tab 1: Nhân viên CRUD -->
+      <section id="tab-employees" class="tab-panel tab-panel--active">
+        <div class="employees-layout">
+          <div class="card">
+            <h2 id="employee-form-title">Thêm nhân viên</h2>
+            <form id="employee-form" class="employee-form">
+              <label>
+                Tên nhân viên
+                <input
+                  type="text"
+                  id="employee-name-input"
+                  placeholder="Ví dụ: Nguyễn Văn A"
+                  required
+                />
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="employee-submit">
+                  Thêm nhân viên
+                </button>
+                <button type="button" class="btn btn-secondary" id="employee-cancel" hidden>
+                  Hủy
+                </button>
+              </div>
+            </form>
+            <p id="employee-error" class="error" hidden></p>
+          </div>
+
+          <div class="card">
+            <h2>Danh sách nhân viên (<span id="employee-count">0</span>)</h2>
+            <div id="employee-list" class="employee-list">
+              <p class="empty">Chưa có nhân viên nào.</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="controls">
-        <div class="controls-grid">
-          <div class="card">
-            <h2>Danh sách nhân viên</h2>
-            <p class="hint">Mỗi dòng một tên nhân viên</p>
-            <textarea
-              id="employees-input"
-              rows="4"
-              placeholder="Ví dụ:&#10;Nguyễn Văn A&#10;Trần Thị B&#10;Lê Văn C"
-            ></textarea>
-            <button type="button" id="save-employees" class="btn btn-primary">
-              Lưu danh sách
-            </button>
-            <p class="badge" id="employee-count">0 nhân viên</p>
+      <!-- Tab 2: Lập lịch + timeline -->
+      <section id="tab-schedule" class="tab-panel" hidden>
+        <section class="gantt-panel card">
+          <div class="gantt-panel-head">
+            <h2>Bảng điều phối lịch</h2>
+            <div id="legend" class="legend"></div>
           </div>
+          <div id="timeline" class="gantt">
+            <p class="empty">Thêm nhân viên ở tab Quản lý để hiển thị timeline.</p>
+          </div>
+        </section>
 
+        <div class="schedule-layout">
           <div class="card">
             <h2>Gán lịch</h2>
             <form id="assignment-form">
@@ -81,6 +111,8 @@
         </div>
       </section>
     </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script type="module" src="/src/main.js"></script>
   </body>

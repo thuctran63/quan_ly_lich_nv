@@ -11,6 +11,7 @@ const $ = (sel) => document.querySelector(sel);
 
 let state = { date: '', employees: [], assignments: [] };
 let nowLineEl = null;
+let editingEmployee = null;
 
 function formatDateVi(iso) {
   const [y, m, d] = iso.split('-');
@@ -34,13 +35,6 @@ async function api(path, options) {
 
 async function loadState() {
   state = await api('/state');
-}
-
-function parseEmployees(text) {
-  return text
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 
 function minutes(hhmm) {
@@ -81,6 +75,18 @@ function assignLanes(items) {
   return lanes.flat();
 }
 
+function showEmployeeError(msg) {
+  const el = $('#employee-error');
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = msg;
+  toast(msg, 'error');
+}
+
 function showError(msg) {
   const el = $('#form-error');
   if (!msg) {
@@ -90,6 +96,136 @@ function showError(msg) {
   }
   el.hidden = false;
   el.textContent = msg;
+  toast(msg, 'error');
+}
+
+let toastTimer;
+function toast(msg, type = 'success') {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.className = `toast toast--${type} toast--show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('toast--show'), 3000);
+}
+
+async function withLoading(btn, fn) {
+  if (!btn) return fn();
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+  try {
+    return await fn();
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach((btn) => {
+    btn.classList.toggle('nav-tab--active', btn.dataset.tab === tab);
+  });
+  $('#tab-employees').hidden = tab !== 'employees';
+  $('#tab-schedule').hidden = tab !== 'schedule';
+  $('#tab-employees').classList.toggle('tab-panel--active', tab === 'employees');
+  $('#tab-schedule').classList.toggle('tab-panel--active', tab === 'schedule');
+}
+
+function resetEmployeeForm() {
+  editingEmployee = null;
+  $('#employee-form-title').textContent = 'Thêm nhân viên';
+  $('#employee-submit').textContent = 'Thêm nhân viên';
+  $('#employee-cancel').hidden = true;
+  $('#employee-name-input').value = '';
+  showEmployeeError('');
+}
+
+function renderEmployeeList() {
+  const container = $('#employee-list');
+  $('#employee-count').textContent = state.employees.length;
+
+  if (!state.employees.length) {
+    container.innerHTML = '<p class="empty">Chưa có nhân viên nào.</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const name of state.employees) {
+    const row = document.createElement('div');
+    row.className = 'employee-row';
+    row.innerHTML = `
+      <span class="employee-row-name">
+        <span class="legend-dot" style="background:${hashColor(name)}"></span>
+        ${esc(name)}
+      </span>
+      <span class="employee-row-actions">
+        <button type="button" class="btn btn-sm btn-secondary btn-edit">Sửa</button>
+        <button type="button" class="btn btn-sm btn-danger">Xóa</button>
+      </span>
+    `;
+    row.querySelector('.btn-edit').addEventListener('click', () => startEditEmployee(name));
+    row.querySelector('.btn-danger').addEventListener('click', () => removeEmployeeByName(name));
+    container.appendChild(row);
+  }
+}
+
+function startEditEmployee(name) {
+  editingEmployee = name;
+  $('#employee-form-title').textContent = 'Sửa nhân viên';
+  $('#employee-submit').textContent = 'Cập nhật';
+  $('#employee-cancel').hidden = false;
+  $('#employee-name-input').value = name;
+  $('#employee-name-input').focus();
+  showEmployeeError('');
+}
+
+async function submitEmployeeForm(e) {
+  e.preventDefault();
+  const name = $('#employee-name-input').value.trim();
+  if (!name) {
+    showEmployeeError('Nhập tên nhân viên.');
+    return;
+  }
+
+  const btn = $('#employee-submit');
+  await withLoading(btn, async () => {
+    try {
+      if (editingEmployee) {
+        state = await api('/employees', {
+          method: 'PATCH',
+          body: JSON.stringify({ oldName: editingEmployee, newName: name }),
+        });
+        toast(`Đã cập nhật: ${editingEmployee} → ${name}`);
+      } else {
+        state = await api('/employees', {
+          method: 'POST',
+          body: JSON.stringify({ name }),
+        });
+        toast(`Đã thêm nhân viên ${name}`);
+      }
+      resetEmployeeForm();
+      render();
+    } catch (err) {
+      showEmployeeError(err.message);
+    }
+  });
+}
+
+async function removeEmployeeByName(name) {
+  const count = state.assignments.filter((a) => a.employee === name).length;
+  const extra = count ? `\n\nSẽ xóa luôn ${count} ca lịch của nhân viên này.` : '';
+  if (!confirm(`Xóa nhân viên "${name}"?${extra}`)) return;
+
+  try {
+    state = await api('/employees', {
+      method: 'DELETE',
+      body: JSON.stringify({ name }),
+    });
+    if (editingEmployee === name) resetEmployeeForm();
+    render();
+    toast(`Đã xóa nhân viên ${name}`);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 function updateEmployeeSelect() {
@@ -146,7 +282,9 @@ function renderAssignmentList() {
     btn.type = 'button';
     btn.className = 'btn btn-danger';
     btn.textContent = 'Xóa';
-    btn.addEventListener('click', () => deleteAssignment(a.id));
+    btn.addEventListener('click', () =>
+      deleteAssignment(a.id, `${a.employee} (${a.start}–${a.end}: ${a.task})`)
+    );
     div.appendChild(btn);
     container.appendChild(div);
   }
@@ -170,7 +308,7 @@ function renderTimeline() {
 
   if (!state.employees.length) {
     container.className = 'gantt gantt--empty';
-    container.innerHTML = '<p class="empty">Lưu danh sách nhân viên để hiển thị bảng điều phối.</p>';
+    container.innerHTML = '<p class="empty">Thêm nhân viên ở tab Quản lý để hiển thị timeline.</p>';
     return;
   }
 
@@ -266,60 +404,53 @@ function renderTimeline() {
 
 function render() {
   $('#current-date').textContent = formatDateVi(state.date);
-  $('#employees-input').value = state.employees.join('\n');
-  $('#employee-count').textContent = `${state.employees.length} nhân viên`;
+  renderEmployeeList();
   renderLegend();
   updateEmployeeSelect();
   renderAssignmentList();
   renderTimeline();
 }
 
-async function saveEmployees() {
-  const names = parseEmployees($('#employees-input').value);
-  if (!names.length) {
-    showError('Nhập ít nhất một nhân viên.');
-    return;
-  }
-  try {
-    state = await api('/employees', {
-      method: 'PUT',
-      body: JSON.stringify({ employees: names }),
-    });
-    showError('');
-    render();
-  } catch (e) {
-    showError(e.message);
-  }
-}
-
 async function addAssignment(employee, start, end, task) {
   if (!state.employees.length) {
-    showError('Lưu danh sách nhân viên trước.');
+    showError('Thêm nhân viên ở tab Quản lý trước.');
     return;
   }
-  try {
-    state = await api('/assignments', {
-      method: 'POST',
-      body: JSON.stringify({ employee, start, end, task }),
-    });
-    showError('');
-    render();
-  } catch (e) {
-    showError(e.message);
-  }
+  const btn = $('#assignment-form button[type="submit"]');
+  await withLoading(btn, async () => {
+    try {
+      state = await api('/assignments', {
+        method: 'POST',
+        body: JSON.stringify({ employee, start, end, task }),
+      });
+      showError('');
+      $('#task-input').value = '';
+      render();
+      toast(`Đã gán lịch cho ${employee}: ${start}–${end}`);
+    } catch (e) {
+      showError(e.message);
+    }
+  });
 }
 
-async function deleteAssignment(id) {
+async function deleteAssignment(id, label) {
+  if (!confirm(`Xóa lịch này?\n\n${label}`)) return;
   try {
     state = await api(`/assignments/${id}`, { method: 'DELETE' });
     render();
+    toast('Đã xóa lịch');
   } catch (e) {
-    showError(e.message);
+    toast(e.message, 'error');
   }
 }
 
 function bindEvents() {
-  $('#save-employees').addEventListener('click', saveEmployees);
+  document.querySelectorAll('.nav-tab').forEach((btn) => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  $('#employee-form').addEventListener('submit', submitEmployeeForm);
+  $('#employee-cancel').addEventListener('click', resetEmployeeForm);
 
   $('#assignment-form').addEventListener('submit', (e) => {
     e.preventDefault();

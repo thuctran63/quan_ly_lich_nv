@@ -1,6 +1,18 @@
 # PHÙNG NỒNG — Bảng điều phối lịch nhân viên
 
-Trang web quản lý ca lịch nhân viên theo timeline trong ngày. **Mọi người dùng chung một lịch** — dữ liệu lưu JSON trên Redis (Upstash qua Vercel), không phải localStorage từng máy.
+Trang web quản lý ca lịch nhân viên theo timeline trong ngày. **Mọi người dùng chung một lịch** — dữ liệu lưu trên **MongoDB Atlas**.
+
+## Setup MongoDB (1 lần)
+
+1. Tạo free cluster tại [mongodb.com/atlas](https://www.mongodb.com/atlas)
+2. **Database Access** → tạo user + password
+3. **Network Access** → Add IP `0.0.0.0/0` (cho phép Vercel kết nối)
+4. **Connect** → Drivers → copy connection string
+5. Tạo file `.env` từ `.env.example`, dán URI (thay `USER` / `PASSWORD`)
+
+```env
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/phungnong?retryWrites=true&w=majority
+```
 
 ## Chạy local
 
@@ -10,20 +22,33 @@ npm run dev
 ```
 
 - Web: http://localhost:5173
-- API dev: http://localhost:3001 (lưu tạm trong RAM — reload server là mất)
+- API: http://localhost:3001
 
 ## Deploy lên Vercel
 
 1. Push repo lên GitHub
 2. [vercel.com](https://vercel.com) → **New Project** → Import repo
-3. **Storage** → Marketplace → cài **Upstash Redis** → Connect vào project
+3. **Settings → Environment Variables** → thêm `MONGODB_URI` (cùng URI như `.env`)
 4. Deploy
 
-Vercel tự inject `KV_REST_API_URL` và `KV_REST_API_TOKEN`. Không cần SQLite, không cần server riêng.
+Vercel tự chạy API trong thư mục `/api` + serve frontend từ `dist/`.
 
-### Tại sao cần Redis?
+## Cấu trúc data
 
-Trình duyệt không thể lưu chung cho mọi người. Cần một chỗ lưu tập trung — Redis giữ JSON lịch theo ngày (`schedule:2026-06-22`). API serverless (`/api/*`) đọc/ghi Redis, frontend chỉ gọi API.
+Collection `schedules` — **1 document mỗi ngày**:
+
+```json
+{
+  "_id": "2026-06-22",
+  "date": "2026-06-22",
+  "employees": ["Nguyễn Văn A"],
+  "assignments": [
+    { "id": "...", "employee": "Nguyễn Văn A", "start": "08:00", "end": "10:00", "task": "Đi chợ" }
+  ]
+}
+```
+
+Data ngày cũ tự xóa khi có request mới.
 
 ## API
 
@@ -33,10 +58,3 @@ Trình duyệt không thể lưu chung cho mọi người. Cần một chỗ lư
 | PUT | `/api/employees` | Lưu danh sách NV |
 | POST | `/api/assignments` | Thêm ca |
 | DELETE | `/api/assignments/:id` | Xóa ca |
-
-## Cách dùng
-
-1. Nhập danh sách nhân viên → **Lưu danh sách**
-2. Chọn NV, khung giờ, mô tả → **Cập nhật**
-3. Mọi người mở cùng URL → thấy cùng bảng Gantt
-4. Sang ngày mới → key Redis mới, lịch trống

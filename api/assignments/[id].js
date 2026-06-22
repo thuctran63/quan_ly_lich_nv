@@ -1,5 +1,5 @@
-import { deleteAssignment } from '../lib/store.js';
-import { withHandler } from '../lib/handler.js';
+import { deleteAssignment } from '../../lib/store.js';
+import { withHandler } from '../../lib/handler.js';
 
 export default withHandler(async (req, res) => {
   if (req.method !== 'DELETE') {
